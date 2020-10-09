@@ -11,6 +11,8 @@ So there are 3 sections; a twitter bot manager running twitter bots
 periodically, actual twitter bot program to look at a csv and tweet something
 out, and csv creators based on topics.
 
+Looking majorly at this for direction: https://realpython.com/twitter-bot-python-tweepy/
+
 # Design
 
 ## Twitter Bot
