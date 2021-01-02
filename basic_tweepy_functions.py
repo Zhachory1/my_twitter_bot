@@ -41,3 +41,13 @@ tweets = api.home_timeline(count=1)
 tweet = tweets[0]
 print(f"Liking tweet {tweet.id} of {tweet.author.name}")
 api.create_favorite(tweet.id)
+
+### Searching
+for tweet in api.search(q="Python", lang="en", rpp=10):
+    print(f"{tweet.user.name}:{tweet.text}")
+
+
+### Get trending topics
+trends_result = api.trends_place(1)
+for trend in trends_result[0]["trends"]:
+    print(trend["name"])
