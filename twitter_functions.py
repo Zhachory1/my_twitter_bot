@@ -1,40 +1,108 @@
 #!/usr/bin/env python3
 
+import mechanize
 import tweepy
+from bs4 import BeautifulSoup
 
 class TwitterInterface:
     def __init__(self, consumer_key, consumer_secret, access_token, access_token_secret):
-        auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-        auth.set_access_token(access_token, access_token_secret)
-        self.api = tweepy.API(auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True)
+        """
+        Setup, using credentials from Twitter
+        """
+        self.consumer_key = consumer_key
+        self.consumer_secret = consumer_secret
+        self.access_token = access_token
+        self.access_token_secret = access_token_secret
 
-        ### Verify credentials
-        try:
-            self.api.verify_credentials()
-            print("Authentication OK")
-            self.authenticated = True
-        except:
-            print("Error during authentication")
-            self.authenticated = False
+        self.auth = tweepy.OAuthHandler(self.consumer_key, self.consumer_secret)
+        self.auth.set_access_token(self.access_token, self.access_token_secret)
 
-    def check_auth(self):
-        if not self.authenticated:
-            print("Error during authentication, please use the correct tokens to access twitter.")
+        self.tweepy_api = tweepy.API(self.auth)
 
-    def get_last_X_tweets(self, last_X):
-        pass
+    def setup_browser(self):
+        browser = mechanize.Browser()
+        ua = 'Mozilla/5.0 (X11; Linux x86_64; rv:18.0) Gecko/20100101 Firefox/18.0 (compatible;)'
+        browser.addheaders = [('User-Agent', ua), ('Accept', '*/*')]
+        browser.set_handle_robots(False)
+        return browser
+
+    def get_html_data(self, url):
+        browser = self.setup_browser()
+        browser.open(url)
+        html = browser.response().read().decode('utf-8', 'ignore')
+        raw_html = BeautifulSoup(html, "html.parser")
+        browser.close()
+        return raw_html
+
+    def get_user(self, username):
+        user = self.tweepy_api.get_user(screen_name=username)
+        return {'name': user.name, 'username': user.screen_name, 'avatar': None}
+
+    def find_top_users(self):
+        """
+        Use mechanize and beautiful soup to get the data
+        Defaults to the top 100 most popular accounts
+        """
+        people_dict = []
+
+        raw_html = self.get_html_data('https://friendorfollow.com/twitter/most-followers/')
+        people_divs = raw_html.findAll("div", {"class": "text-holder"})
+        for person in people_divs:
+          uname = person.find(class_="mail").next_element.text
+          name = ''.join(person.contents[1].text.split('.')[1::]).strip()
+          avatar = person.parent.find('img').attrs.get('src')
+          people_dict.append({'name': name, 'username': uname, 'avatar': avatar})
+
+        return people_dict
+
+    def get_tweets_from_user(self, username, limit):
+        alltweets = self.tweepy_api.user_timeline(screen_name=username, count=limit)
+        full_length_tweets = {}
+        for tweet in alltweets:
+          full_length_tweet = self.tweepy_api.get_status(tweet.id)._json['full_text']
+          full_length_tweets[tweet.id] = full_length_tweet.encode("utf-8")
+
+        return full_length_tweets
+
+    def get_trends(self):
+        # This will be a one element dict
+        trends = self.tweepy_api.trends_place(1)
+        # Extract the actual trends
+        data = trends[0]
+        # These are all JSON objects
+        # with a name element
+        parsedTrends = data['trends']
+        # Taking out just the names
+        names = [trend['name'] for trend in parsedTrends]
+        # Finally, fixing the encoding
+        for i in range(len(names)):
+          names[i] = names[i].encode('ascii', 'ignore')
+        return names
+
+    # Searches for tweets that use a given tag
+    def search(self, tag):
+        results = self.tweepy_api.search(q=tag)
+        for i in range(len(results)):
+          results[i] = (results[i]).text.encode('ascii', 'ignore')
+        return results
+
+    def get_tweets_from_home(self, limit):
+        alltweets = self.tweepy_api.home_timeline(count=limit)
+        full_length_tweets = {}
+        for tweet in alltweets:
+          full_length_tweet = self.tweepy_api.get_status(tweet.id)._json['text']
+          full_length_tweets[tweet.id] = full_length_tweet.encode("utf-8")
+
+        return full_length_tweets
 
     def like_tweet(self, tweet_id):
-        pass
+        return self.tweepy_api.create_favorite(id=tweet_id)
 
     def retweet(self, tweet_id):
-        pass
+        return self.tweepy_api.retweet(id=tweet_id)
 
     def get_tweet_stats(self, tweet_id):
-        pass
+        return self.tweepy_api.get_status(tweet_id)._json
 
-    def get_user_stats(self, user_id):
-        pass
-
-    def follwer_user(self, user_id):
-        pass
+    def follow_user(self, user_id):
+        return self.tweepy_api.create_friendship(screen_name=user_id)

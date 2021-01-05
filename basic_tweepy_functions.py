@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 
+import json
+
 import tweepy
 
+# Get tokens
+with open("secrets/keys.json") as f:
+    keys = json.load(f)
+
 # Authenticate to Twitter
-auth = tweepy.OAuthHandler("jKdVeYOyRXRdCrm1k3kQI0Zs1",
-    "Uzqt2KX2buarRLcdTbqsEn2SVTg5vKNpZYzfqkKrViTs93G713")
-auth.set_access_token("1314374192620621825-M3lYxPOKKzHhKlqpoiJpnc1yOMM72t",
-    "mbH58BPJSGvOZLrTti3gdFbuq5CSnu1nDucABzsGf31M1")
+auth = tweepy.OAuthHandler(keys["API"], keys["Secret"])
+auth.set_access_token(keys["Access"], keys["Access Secret"])
 
 api = tweepy.API(auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True)
 
